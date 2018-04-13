@@ -17,6 +17,8 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Text;
 
 namespace EkstaziSharp.Instrumentation
 {
@@ -236,7 +238,106 @@ namespace EkstaziSharp.Instrumentation
             Instruction firstInstruction = methodToInstrument.Body.Instructions[0];
             InsertCallToDependencyMonitor(methodToInstrument, firstInstruction, dependencyMonitorMethodToCall, argumentToDependencyMonitor);
         }
+        //Overload the function in the Ekstazisharp to accept dictonary as an extra arguement PathTofile
+        protected void InsertCallToDependencyMonitor(MethodDefinition methodToInstrument, Instruction insertCallBefore, MethodReference dependencyMonitorMethodToCall, MemberReference argumentToDependencyMonitor, Dictionary<String, List<String>> PathToFile)
+        {
+            if (methodToInstrument.IsConstructor == true && methodToInstrument.DeclaringType.IsAbstract == true)
+                return;
+            MethodReference methodToCall = dependencyMonitorMethodToCall;
+            if (methodToInstrument.Module.FullyQualifiedName != dependencyMonitorMethodToCall.Module.FullyQualifiedName)
+            {
+                methodToCall = methodToInstrument.Module.Import(dependencyMonitorMethodToCall);
+            }
+            ILProcessor il = methodToInstrument.Body.GetILProcessor();
+            Instruction callInstruction = il.Create(OpCodes.Call, methodToCall);
+            il.InsertBefore(insertCallBefore, callInstruction);
 
+            if (parameters.InstrumentationArgsType == DependencyMonitor.InstrumentationArguments.ReflectionObjects)
+            {
+                if (argumentToDependencyMonitor != null)
+                {
+                    if (argumentToDependencyMonitor is TypeDefinition)
+                    {
+                        TypeDefinition type = argumentToDependencyMonitor as TypeDefinition;
+                        Instruction ldToken = il.Create(OpCodes.Ldtoken, type);
+                        Instruction callGetType = il.Create(OpCodes.Call, GetTypeFromHandleMethod);
+
+                        il.InsertBefore(callInstruction, callGetType);
+                        il.InsertBefore(callGetType, ldToken);
+                    }
+                    else
+                    {
+                        MethodDefinition method = argumentToDependencyMonitor as MethodDefinition;
+                        Instruction callGetMethod = il.Create(OpCodes.Call, GetCurrentMethod);
+                        il.InsertBefore(callInstruction, callGetMethod);
+                    }
+                }
+                else
+                {
+                    Instruction ldNull = il.Create(OpCodes.Ldnull);
+                    il.InsertBefore(callInstruction, ldNull);
+                }
+            }
+            else if (parameters.InstrumentationArgsType == DependencyMonitor.InstrumentationArguments.Strings)
+            {
+                string callSiteName = null;
+                List<String> dependent = new List<string>();
+                if (dependencyMonitorMethodToCall == TestClassStartMethod || dependencyMonitorMethodToCall == TestMethodStartMethod)
+                {
+                    string path = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetPath() : string.Empty;
+                    Instruction ldPathInstruction = il.Create(OpCodes.Ldstr, path);
+                    il.InsertBefore(callInstruction, ldPathInstruction);
+                    callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetFullName(PathToFile) : string.Empty;
+                    if (PathToFile.ContainsKey(callSiteName))
+                    {
+                        dependent = PathToFile[callSiteName]; }
+                    else
+                        callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetFullName() : string.Empty;
+                    //callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetFullName(L) : string.Empty;                 
+                }
+                else
+                {
+                    //callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetDependencyName(L) : string.Empty;
+                    callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetFullName(PathToFile) : string.Empty;
+                    if (PathToFile.ContainsKey(callSiteName))
+                        dependent = PathToFile[callSiteName];
+                    else
+                        callSiteName = argumentToDependencyMonitor != null ? argumentToDependencyMonitor.GetFullName() : string.Empty;
+                }
+
+                if (dependent.Count != 0)
+                {
+                    String files = null;
+                    foreach (var file in dependent)
+                    {
+                        if (files == null)
+                            files = file;
+                        else
+                            files = files +"\"\n\t\""+ file;
+                    }
+                    if (files == "")
+                        ;
+                    Instruction ldStrInstruction = il.Create(OpCodes.Ldstr, files);
+                    il.InsertBefore(callInstruction, ldStrInstruction);
+                }
+                else
+                {
+                    Instruction ldStrInstruction = il.Create(OpCodes.Ldstr, callSiteName);
+                    if (callSiteName== " ")
+                        ;
+                    il.InsertBefore(callInstruction, ldStrInstruction);
+                }
+                //  Instruction ldStrInstruction = il.Create(OpCodes.Ldstr, callSiteName);
+                // il.InsertBefore(callInstruction, ldStrInstruction);
+
+            }
+        }
+
+        protected void InsertCallToDependencyMonitor(MethodDefinition methodToInstrument, MethodReference dependencyMonitorMethodToCall, MemberReference argumentToDependencyMonitor, Dictionary<String,List <String>> PathToFile)
+        {
+            Instruction firstInstruction = methodToInstrument.Body.Instructions[0];
+            InsertCallToDependencyMonitor(methodToInstrument, firstInstruction, dependencyMonitorMethodToCall, argumentToDependencyMonitor,PathToFile);
+        }
         #endregion
     }
 }

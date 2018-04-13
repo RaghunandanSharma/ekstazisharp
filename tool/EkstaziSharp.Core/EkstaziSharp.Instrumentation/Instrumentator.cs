@@ -182,6 +182,7 @@ namespace EkstaziSharp.Instrumentation
 
             foreach (var module in allModules)
             {
+                
                 ProgramInstrumentator programInstrumentator = GetProgramInstrumentator(module);
                 programInstrumentator.Instrument();
             }

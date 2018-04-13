@@ -318,8 +318,35 @@ namespace EkstaziSharp.Util
             return path;
         }
 
+        public static string GetFullName(this MemberReference member, Dictionary<String, List<String>> PathToFile)
+        {
+            var mem = member;
+            while (!PathToFile.ContainsKey(mem.FullName))
+            {
+                if (mem.DeclaringType== null)
+                    break;
+                mem = mem.DeclaringType;
+          
+            }
+          
+            return mem.FullName;
+            
+            if (member is TypeReference)
+            {
+                return member.FullName;
+            }
+            else if (member is MethodReference)
+            {
+                return $"{member.DeclaringType.FullName}.{member.Name}";
+            }
+            else
+            {
+                throw new NotSupportedException("Member not supported");
+            }
+        }
         public static string GetFullName(this MemberReference member)
         {
+            
             if (member is TypeReference)
             {
                 return member.FullName;

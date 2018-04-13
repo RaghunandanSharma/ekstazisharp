@@ -75,6 +75,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BranchPoint.cs" />
+    <Compile Include="CecilSymbolManager.cs" />
+    <Compile Include="Class.cs" />
+    <Compile Include="CoverageSession.cs" />
     <Compile Include="EkstaziSharp.Instrumentation\ModuleInstrumentator.cs" />
     <Compile Include="EkstaziSharp.Instrumentation\TestInstrumentator.cs" />
     <Compile Include="EkstaziSharp.Instrumentation\ProgramInstrumentator.cs" />
@@ -100,9 +104,29 @@
     <Compile Include="EkstaziSharp.Instrumentation\XUnit1Instrumentator.cs" />
     <Compile Include="EkstaziSharp.Instrumentation\XUnit2Instrumentator.cs" />
     <Compile Include="EkstaziSharp\TestFrameworkConstants.cs" />
+    <Compile Include="File.cs" />
+    <Compile Include="FunctionInfo.cs" />
+    <Compile Include="HelperExtensions.cs" />
+    <Compile Include="IDocumentReference.cs" />
+    <Compile Include="IInstrumentationModelBuilder.cs" />
+    <Compile Include="IInstrumentationModelBuilderFactory.cs" />
+    <Compile Include="InstrumentationModelBuilder.cs" />
+    <Compile Include="InstrumentationModelBuilderFactory.cs" />
+    <Compile Include="InstrumentationPoint.cs" />
+    <Compile Include="ISymbolManager.cs" />
+    <Compile Include="Method.cs" />
+    <Compile Include="Module.cs" />
+    <Compile Include="ModuleFunctionInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="EkstaziSharp.Analysis\XUnitAnalyzer.cs" />
     <Compile Include="EkstaziSharp.Instrumentation\XUnitInstrumentator.cs" />
+    <Compile Include="SequencePoint.cs" />
+    <Compile Include="SkippedEntity.cs" />
+    <Compile Include="SkippedMethod.cs" />
+    <Compile Include="Summary.cs" />
+    <Compile Include="SummarySkippedEntity.cs" />
+    <Compile Include="SymbolFolder.cs" />
+    <Compile Include="TrackedMethod.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Tester\Tester.licenseheader">

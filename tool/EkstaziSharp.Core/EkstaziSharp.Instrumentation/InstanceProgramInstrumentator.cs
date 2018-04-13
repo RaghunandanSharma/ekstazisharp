@@ -17,8 +17,12 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using EkstaziSharp.Util;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
+
+using EkstaziSharp.Model;
+using File = EkstaziSharp.Model.File;
 
 namespace EkstaziSharp.Instrumentation
 {
@@ -26,15 +30,21 @@ namespace EkstaziSharp.Instrumentation
     /// This class notifies DependencyMonitor about each class used during program execution
     /// by adding calls to DependencyMonitor in each instance constructor and on each static field access.
     /// </summary>
+    /// 
+
+        
     public class InstanceProgramInstrumentator : ProgramInstrumentator
     {
-        #region Private Fields
 
+        #region Private Fields
+        Dictionary< Int32,String> L = new Dictionary<Int32,string>();
+        private Dictionary<string, Dictionary<string, FunctionInfo>> AllAssemblyInfo = new Dictionary<string, Dictionary<string, FunctionInfo>>();
+        private IInstrumentationModelBuilderFactory _instrumentationModelBuilderFactory;      
         /// <summary>
         /// Indicates whether method under instrumentation has been modified.
         /// </summary>
         private bool methodModified = false;
-
+        Dictionary<String, List<string>> PathToFile = new Dictionary<string, List<string>>();
         /// <summary>
         /// Represents method currently under instrumentation.
         /// </summary>
@@ -69,7 +79,7 @@ namespace EkstaziSharp.Instrumentation
         }
 
         private TypeReference GetStaticFieldAccessTarget(MethodDefinition method, Instruction staticFieldAccessInstruction)
-        { 
+        {
             ILProcessor il = method.Body.GetILProcessor();
             FieldReference operand = staticFieldAccessInstruction.Operand as FieldReference;
             TypeReference declaringType = operand.DeclaringType;
@@ -84,11 +94,14 @@ namespace EkstaziSharp.Instrumentation
         private TypeReference GetStaticMethodCallTarget(MethodDefinition method, Instruction staticMethodCallInstruction)
         {
             ILProcessor il = method.Body.GetILProcessor();
+
+            //MethodDefinition calle = staticMethodCallInstruction.Operand as MethodDefinition;
             MethodReference callee = staticMethodCallInstruction.Operand as MethodReference;
             // type containing method called used callInstruction
             TypeReference declaringType = callee.DeclaringType;
             // same reason as for GetStaticFieldAccessTarget
             return declaringType.GetElementType();
+            //MetadataToken  
         }
 
         private bool WithinModuleUnderInstrumentation(TypeReference type)
@@ -119,7 +132,7 @@ namespace EkstaziSharp.Instrumentation
                     if (WithinModuleUnderInstrumentation(type))
                     {
                         //instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(instruction, type));
-                        instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(null, type));
+                         instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(null, type));
                     }
                 }
                 else if (IsStaticMethodCall(instruction))
@@ -136,7 +149,6 @@ namespace EkstaziSharp.Instrumentation
             return instrumentationPoints;
         }
 
-
         private void InstrumentAtPoints(MethodDefinition method, List<Tuple<Instruction, TypeReference>> instrumentationPoints)
         {
             if (instrumentationPoints.Count == 0)
@@ -151,11 +163,11 @@ namespace EkstaziSharp.Instrumentation
                 TypeReference dependency = pair.Item2;
                 if (instruction == null)
                 {
-                    InsertCallToDependencyMonitor(method, TMethod, dependency);
+                     InsertCallToDependencyMonitor(method, TMethod, dependency,PathToFile);
                 }
                 else
                 {
-                    InsertCallToDependencyMonitor(method, instruction, TMethod, dependency);
+                     InsertCallToDependencyMonitor(method, instruction, TMethod, dependency,PathToFile);
                 }
             }
             method.Body.OptimizeMacros();
@@ -191,9 +203,106 @@ namespace EkstaziSharp.Instrumentation
         #endregion
 
         #region Public Methods
+        
+        public EkstaziSharp.Model.Module TrackAssembly(string modulePath, string assemblyName)
+        {
+            _instrumentationModelBuilderFactory = new InstrumentationModelBuilderFactory();
+            var builder = _instrumentationModelBuilderFactory.CreateModelBuilder(modulePath, assemblyName);
+            EkstaziSharp.Model.Module module = builder.BuildModuleModel();
+            SaveModule(module);
+            return module;
+        }
+        //for the mapping, saved in PathToFile. FunctionName and FunctionFile 
+        private void SaveModule(EkstaziSharp.Model.Module module)
+        {
+            if (module.FullName.Contains("National") || module.FullName.Contains("national"))
+            {
+                var files = module.Files;
+                foreach (var c in module.Classes)
+                {
+                    List<String> PathOFclass = new List<string>();
+                    foreach (var m in c.Methods)
+                    {
+                        FunctionInfo newFunc = new FunctionInfo();
+                        newFunc.functionToken = m.MetadataToken.ToString();
+                        newFunc.functionName = m.Name;
+                        if (m.FileRef != null)
+                        {
+                            newFunc.functionFileReference = module.Files.Where(s => s.UniqueId == m.FileRef.UniqueId).First().FullPath;
+                        }
+                        var val = L[m.MetadataToken];
+                        if (!PathOFclass.Contains(newFunc.functionFileReference) && newFunc.functionFileReference != null)
+                            PathOFclass.Add(newFunc.functionFileReference);   
+                      //  if (!PathToFile.ContainsKey(val)&&newFunc.functionFileReference!=null )
+                       //     PathToFile.Add(c.FullName, newFunc.functionFileReference);
+
+                        //if (PathToFile.ContainsKey(argumentToDependencyMonitor.FullName))
+                        //{
+                        //    PathToFile.Add(newFunc.functionName, newFunc.functionFileReference);
+                        //}
+                        //if (!PathToFile.ContainsKey(newFunc.functionName))
+                        //    PathToFile.Add(newFunc.functionName,newFunc.functionFileReference);
+                        ///*
+                        //else
+                        //    Console.WriteLine(F[newFunc.functionName].functionFileReference, newFunc.functionFileReference);
+                        //*/
+                    }
+                    if(PathOFclass.Count!=0)
+                    PathToFile.Add(c.FullName, PathOFclass);
+                }
+            }
+
+        }
+
+
+        //public void Extra()
+        //{
+        //    int c = 0;
+
+        //    foreach (TypeDefinition type in moduleToInstrument.GetTypes(includeNestedTypes: true))
+        //    {
+        //        foreach (MethodDefinition method in type.Methods)
+        //        {
+        //            if (!L.ContainsKey(method.DeclaringType.FullName))
+        //                L.Add(method.DeclaringType.FullName, method.MetadataToken);
+        //            else
+        //                c++;
+        //            if (method is TypeReference)
+        //            {
+        //                L.Add(method.FullName, method.MetadataToken); 
+        //            }
+        //            else if (method is MethodReference)
+        //            {
+        //               // L.Add(method$"{method.DeclaringType.FullName}.{method.Name}", method.MetadataToken);
+        //            }
+        //        }
+        //    }
+        //}
+        public void Extra()
+        {
+            int c = 0;
+
+            foreach (TypeDefinition type in moduleToInstrument.GetTypes(includeNestedTypes: true))
+            {
+                if (type.DeclaringType!=null)
+                    ;
+                foreach (MethodDefinition method in type.Methods)
+                {
+                    if (!L.ContainsKey(method.MetadataToken.ToInt32()))
+                        L.Add(method.MetadataToken.ToInt32(),method.DeclaringType.FullName );
+                    else
+                        c++;
+                    
+                }
+            }
+           // Extra2();
+        }
 
         public override void Instrument()
         {
+            Extra();
+            //Added part for the mapping of the FunctionName to the FilePath
+            TrackAssembly(moduleToInstrument.FullyQualifiedName, "");
             // TODO: Experiment with parallelizing following loops
             foreach (TypeDefinition type in moduleToInstrument.GetTypes(includeNestedTypes: true))
             {
