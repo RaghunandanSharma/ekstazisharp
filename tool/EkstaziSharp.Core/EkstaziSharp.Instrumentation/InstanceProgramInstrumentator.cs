@@ -118,7 +118,8 @@ namespace EkstaziSharp.Instrumentation
                     TypeReference type = GetStaticFieldAccessTarget(method, instruction);
                     if (WithinModuleUnderInstrumentation(type))
                     {
-                        instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(instruction, type));
+                        //instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(instruction, type));
+                        instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(null, type));
                     }
                 }
                 else if (IsStaticMethodCall(instruction))
@@ -126,13 +127,15 @@ namespace EkstaziSharp.Instrumentation
                     TypeReference type = GetStaticMethodCallTarget(method, instruction);
                     if (WithinModuleUnderInstrumentation(type))
                     {
-                        instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(instruction, type));
+                        //instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(instruction, type));
+                        instrumentationPoints.Add(new Tuple<Instruction, TypeReference>(null, type));
                     }
                 }
             }
 
             return instrumentationPoints;
         }
+
 
         private void InstrumentAtPoints(MethodDefinition method, List<Tuple<Instruction, TypeReference>> instrumentationPoints)
         {
